@@ -1,0 +1,97 @@
+# Frozen case/comparison definitions for this paper -- NOT the live
+# NL_kinks/cases.toml. Copy in only the cases this paper actually cites, and
+# only the steps a cited figure actually pools, so a figure's meaning stays
+# pinned to what was in the paper even as exploratory work in NL_kinks/
+# keeps moving. Re-sync by hand (copy the relevant [cases.*]/[comparisons.*]
+# blocks over) if a run needs extending after a figure's already in the
+# manuscript.
+#
+# Same TOML dialect as ashen's own cases.toml -- see
+# ashen/cases.example.toml for the full field reference. Loaded with
+# ashen.cases.load_cases / ashen.comparisons.load_comparisons, unmodified.
+#
+# PLACEHOLDER: case names/steps below are copied from ashen's own example
+# file, not real run data -- replace with this paper's actual cases before
+# running make_figures.py.
+
+[defaults]
+namelist        = "in_main"
+psi_n_in        = [0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]
+n_turns         = 1000
+ang_sample_freq = 8
+
+[cases."qa2.1_g2.3/eta1e-3_RE"]
+note  = "resistivity scan member, eta=1e-3"
+steps = [2400, 2600, 2800]
+
+[cases."qa2.1_g2.3/eta1e-4_RE"]
+note  = "resistivity scan member, eta=1e-4"
+steps = [2400, 2600, 2800]
+
+[cases."qa2.1_g2.3/eta1e-5_RE"]
+note  = "resistivity scan member, eta=1e-5"
+steps = [2400, 2600, 2800]
+
+# PLACEHOLDER: for figs/lctt_composite.py -- dense enough step coverage over
+# the whole run for both the overview strip and the zoomed transition window.
+# Replace ranges with this paper's actual step cadence.
+[cases."qa2.1_g2.3/eta1e-2_RE"]
+note  = "eta=1e-2 run, LCTT composite"
+steps = { start = 200, stop = 24000, step = 200 }
+
+[cases."qa2.1_g2.3/eta1e-2_RE".connection_length]
+steps = { start = 200, stop = 24000, step = 200 }
+
+[cases."qa2.1_g2.3/eta1e-4_RE".connection_length]
+steps = { start = 200, stop = 24000, step = 200 }
+
+# PLACEHOLDER: the rho19 scan's cases -- same eta values, different profile
+# assumption. Replace the run folder names with the real rho19 scan.
+[cases."qa2.1_g2.3_rho19/eta1e-3_RE"]
+note  = "rho19 resistivity scan member, eta=1e-3"
+steps = [2400, 2600, 2800]
+
+[cases."qa2.1_g2.3_rho19/eta1e-4_RE"]
+note  = "rho19 resistivity scan member, eta=1e-4"
+steps = [2400, 2600, 2800]
+
+[cases."qa2.1_g2.3_rho19/eta1e-5_RE"]
+note  = "rho19 resistivity scan member, eta=1e-5"
+steps = [2400, 2600, 2800]
+
+[comparisons.eta_scan]
+note          = "resistivity scan, theta dispersion at the q=1 crossing"
+cases         = [
+  "qa2.1_g2.3/eta1e-3_RE",
+  "qa2.1_g2.3/eta1e-4_RE",
+  "qa2.1_g2.3/eta1e-5_RE",
+]
+x_tick_labels = ["$\\eta = 10^{-3}$", "$\\eta = 10^{-4}$", "$\\eta = 10^{-5}$"]
+n_cols        = 3
+theta_target_psi = 1.05
+theta_bins       = 500
+
+# Same scan as eta_scan, overlaying normal vs. rho19 on one wetted-fraction-
+# vs-eta plot -- see ashen/README.md's datasets section.
+[comparisons.wetted_vs_eta]
+note     = "wetted fraction vs. eta, normal profile vs. rho19"
+x_values = [1e-3, 1e-4, 1e-5]
+x_label  = "$\\eta$ [$\\Omega \\cdot$ m]"
+theta_target_psi = 1.05
+theta_bins       = 500
+
+[comparisons.wetted_vs_eta.datasets.normal]
+cases = [
+  "qa2.1_g2.3/eta1e-3_RE",
+  "qa2.1_g2.3/eta1e-4_RE",
+  "qa2.1_g2.3/eta1e-5_RE",
+]
+
+[comparisons.wetted_vs_eta.datasets.rho19]
+cases = [
+  "qa2.1_g2.3_rho19/eta1e-3_RE",
+  "qa2.1_g2.3_rho19/eta1e-4_RE",
+  "qa2.1_g2.3_rho19/eta1e-5_RE",
+]
+color         = "tab:red"
+dataset_label = "$\\rho^* = 19$"
