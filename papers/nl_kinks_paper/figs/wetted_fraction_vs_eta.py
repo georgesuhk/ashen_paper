@@ -27,7 +27,7 @@ from paper_toolkit.style import journal_style
 
 __all__ = ["make"]
 
-_COMPARISON_NAME = "wetted_vs_eta"
+_DEFAULT_COMPARISON_NAME = "wetted_vs_eta"
 
 
 def make(
@@ -39,11 +39,16 @@ def make(
     ashen_repo: Path | None = None,
     paper_repo: Path | None = None,
     dataset_names: list[str] | None = None,
+    comparison_name: str | None = None,
 ) -> Path:
     """`dataset_names` restricts which of the comparison's datasets are
     drawn (default: all) -- e.g. to render "normal" and "rho19" as separate
-    figures instead of one overlay."""
-    comparison = comparisons[_COMPARISON_NAME]
+    figures instead of one overlay. `comparison_name` selects which
+    `[comparisons.*]` block to draw (default: `_DEFAULT_COMPARISON_NAME`)."""
+    name = comparison_name or _DEFAULT_COMPARISON_NAME
+    if name not in comparisons:
+        raise ValueError(f"no comparison {name!r}; known: {list(comparisons)}")
+    comparison = comparisons[name]
 
     datasets = comparison.datasets
     if dataset_names is not None:
@@ -51,6 +56,7 @@ def make(
         if unknown:
             raise ValueError(f"no dataset(s) {unknown}; known: {list(datasets)}")
         datasets = {n: datasets[n] for n in dataset_names}
+    print(f"wetted_fraction_vs_eta: comparison {comparison.name!r}, dataset(s) {list(datasets)}")
 
     series: list[tuple[str, list[float], list[float]]] = []
     colors: list[str] = []
@@ -63,6 +69,7 @@ def make(
                 "x_values (and the comparison sets none to fall back on)"
             )
         x_by_case = dict(zip(dataset.cases, x_values))
+        print(f"  dataset {ds_name!r}: {len(dataset.cases)} case(s)")
 
         xs: list[float] = []
         ys: list[float] = []
@@ -74,6 +81,7 @@ def make(
 
             steps = case.steps_for("theta_hist")
             case_steps[case_name] = steps
+            print(f"    {case_name}: reading {len(steps)} step(s) from cache")
             records_by_step = {step: read_step(paths, step) for step in steps}
 
             target = comparison.theta_target_psi or case.theta_target_psi
@@ -90,13 +98,16 @@ def make(
                 or case.theta_wetted_threshold
                 or 1.0 / n_bins
             )
+            fraction = wetted_fraction(counts, threshold=threshold)
+            print(f"    {case_name}: wetted fraction = {fraction:.3g}")
             xs.append(x_by_case[case_name])
-            ys.append(wetted_fraction(counts, threshold=threshold))
+            ys.append(fraction)
 
         used_steps[ds_name] = case_steps
         series.append((dataset.series_label, xs, ys))
         colors.append(dataset.color or DISCRETE_PALETTE[idx % len(DISCRETE_PALETTE)])
 
+    print("wetted_fraction_vs_eta: drawing and saving")
     out = _draw_and_save(
         series, colors=colors, xlabel=comparison.x_label, out_dir=out_dir,
         ashen_repo=ashen_repo, paper_repo=paper_repo,

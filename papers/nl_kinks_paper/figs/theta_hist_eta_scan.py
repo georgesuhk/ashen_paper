@@ -31,7 +31,7 @@ from paper_toolkit.style import journal_style
 
 __all__ = ["make"]
 
-_COMPARISON_NAME = "eta_scan"
+_DEFAULT_COMPARISON_NAME = "eta_scan"
 
 
 def make(
@@ -42,8 +42,13 @@ def make(
     *,
     ashen_repo: Path | None = None,
     paper_repo: Path | None = None,
+    comparison_name: str | None = None,
 ) -> Path:
-    comparison = comparisons[_COMPARISON_NAME]
+    name = comparison_name or _DEFAULT_COMPARISON_NAME
+    if name not in comparisons:
+        raise ValueError(f"no comparison {name!r}; known: {list(comparisons)}")
+    comparison = comparisons[name]
+    print(f"theta_hist_eta_scan: comparison {comparison.name!r}, {len(comparison.cases)} case(s)")
 
     panels: list[tuple[str, np.ndarray]] = []
     used_steps: dict[str, list[int]] = {}
@@ -54,6 +59,7 @@ def make(
 
         steps = case.steps_for("theta_hist")
         used_steps[case_name] = steps
+        print(f"  {case_name}: reading {len(steps)} step(s) from cache")
         records_by_step = {step: read_step(paths, step) for step in steps}
 
         target = comparison.theta_target_psi or case.theta_target_psi
@@ -63,9 +69,11 @@ def make(
             target_psi=target, real_psi_edge=real_psi_edge,
             psi_n_range=tuple(theta_range) if theta_range else None,
         )
+        print(f"  {case_name}: {result.angles.size} crossing(s) pooled")
         panels.append((label, result.angles))
 
     bins = comparison.theta_bins or 500
+    print("theta_hist_eta_scan: drawing and saving")
     out = _draw_and_save(
         panels, bins=bins, n_cols=comparison.n_cols, out_dir=out_dir,
         ashen_repo=ashen_repo, paper_repo=paper_repo,

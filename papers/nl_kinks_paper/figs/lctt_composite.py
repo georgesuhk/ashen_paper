@@ -97,11 +97,13 @@ def _matrix_and_times(case: Case, paths: RunPaths) -> tuple[np.ndarray, np.ndarr
     psi_n_targets = [p * real_psi_edge for p in psi_n_in]
 
     steps = case.steps_for("connection_length")
+    print(f"    {case.name}: reading {len(steps)} step(s) from cache")
     records_by_step = {step: read_step(paths, step) for step in steps}
     matrix = connection_length_matrix(
         records_by_step, steps, psi_n_targets, real_psi_edge=real_psi_edge, R0=R0
     )
 
+    print(f"    {case.name}: reading true-time for {len(steps)} step(s)")
     true_times = [read_zeroD(paths.zero_d(step))["Time"] for step in steps]
     x = np.asarray(true_times) * 1e6  # µs
     return matrix, x, psi_n_in
@@ -148,6 +150,7 @@ def make(
 ) -> Path:
     data: dict[str, tuple[np.ndarray, np.ndarray, list[float], RunPaths]] = {}
     for case_name in PANELS:
+        print(f"lctt_composite: {case_name}")
         case = cases[case_name]
         paths = RunPaths.detect(runs_root / case_name)
         matrix, x, psi_n_in = _matrix_and_times(case, paths)
@@ -158,6 +161,7 @@ def make(
     import matplotlib.pyplot as plt
     from matplotlib.gridspec import GridSpec
 
+    print("lctt_composite: drawing and saving")
     with journal_style():
         fig = plt.figure(figsize=(7.1, 8.0), layout="constrained")
         gs = GridSpec(4, 2, figure=fig, height_ratios=[0.6, 0.6, 3.5, 0.25])

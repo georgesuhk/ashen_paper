@@ -74,6 +74,12 @@ def main(argv: list[str] | None = None) -> int:
         "datasets (repeatable; default: all; ignored by figures that don't "
         "take this option).",
     )
+    parser.add_argument(
+        "--compare", dest="comparison_name", default=None,
+        help="Which [comparisons.*] block to draw, for a figure that reads "
+        "one from cases.toml (default: the figure's own default; ignored by "
+        "figures that don't take this option, e.g. lctt_composite).",
+    )
     args = parser.parse_args(argv)
 
     if args.list:
@@ -91,9 +97,13 @@ def main(argv: list[str] | None = None) -> int:
 
     for name in args.figures:
         fn = REGISTRY[name]
+        params = inspect.signature(fn).parameters
         kwargs = {"ashen_repo": _ASHEN_REPO, "paper_repo": _PAPER_REPO}
-        if args.datasets_selected and "dataset_names" in inspect.signature(fn).parameters:
+        if args.datasets_selected and "dataset_names" in params:
             kwargs["dataset_names"] = args.datasets_selected
+        if args.comparison_name and "comparison_name" in params:
+            kwargs["comparison_name"] = args.comparison_name
+        print(f"==== {name} ====")
         out = fn(cases, comparisons, args.runs_root, args.out_dir, **kwargs)
         print(out)
     return 0
