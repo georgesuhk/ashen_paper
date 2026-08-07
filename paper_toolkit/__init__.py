@@ -5,7 +5,7 @@ with provenance, and journal figsize constants are genuinely reusable across
 any future paper, but which cases go in which panel, which steps to pool, and
 how a composite figure is laid out is paper-specific and belongs under
 ``papers/<slug>/`` (a sibling of this package, both under
-``Columbia/paper_workspace/``), not here.
+``Columbia/ashen_paper/``), not here.
 
 Not an installable package -- imported the same way ``ashen`` itself is, via
 a ``sys.path.insert`` in each paper's entry-point script only (see

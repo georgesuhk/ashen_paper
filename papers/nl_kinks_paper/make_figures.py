@@ -11,12 +11,12 @@ sys.path itself.
 
 Layout this assumes:
 
-    Columbia/paper_workspace/          <- its own git repo (paper_toolkit +
-      paper_toolkit/                      every paper's figures are small,
-      papers/<slug>/make_figures.py       text+PDF, and want real history --
-                                           unlike Columbia/NL_kinks's run data,
-                                           which this never touches beyond
-                                           reading already-cached results)
+    Columbia/ashen_paper/               <- its own git repo (paper_toolkit +
+      paper_toolkit/                       every paper's figures are small,
+      papers/<slug>/make_figures.py        text+PDF, and want real history --
+                                            unlike Columbia/NL_kinks's run data,
+                                            which this never touches beyond
+                                            reading already-cached results)
 """
 
 from __future__ import annotations
@@ -27,12 +27,12 @@ import sys
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
-# paper_workspace/papers/<slug> -> papers -> paper_workspace -> Columbia -> repo root
-_PAPER_WORKSPACE = _HERE.parents[1]
+# ashen_paper/papers/<slug> -> papers -> ashen_paper -> Columbia -> repo root
+_ASHEN_PAPER = _HERE.parents[1]
 _REPO_ROOT = _HERE.parents[3]
 
 sys.path.insert(0, str(_REPO_ROOT / "ashen" / "src"))
-sys.path.insert(0, str(_PAPER_WORKSPACE))  # for paper_toolkit
+sys.path.insert(0, str(_ASHEN_PAPER))  # for paper_toolkit
 
 from ashen.cases import load_cases  # noqa: E402  (import follows bootstrap)
 from ashen.comparisons import load_comparisons  # noqa: E402
@@ -46,7 +46,7 @@ REGISTRY = {
 }
 
 _ASHEN_REPO = _REPO_ROOT / "ashen"
-_PAPER_REPO = _PAPER_WORKSPACE  # save_pdf tolerates this not (yet) being a git repo
+_PAPER_REPO = _ASHEN_PAPER  # save_pdf tolerates this not (yet) being a git repo
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -3,13 +3,12 @@
 Production figures for this paper, built from `ashen`'s existing
 diagnostics/plotting layer plus `paper_toolkit`'s journal styling and PDF
 saving. Not part of `ashen` itself -- see
-`Columbia/paper_workspace/paper_toolkit/__init__.py` for why.
+`Columbia/ashen_paper/paper_toolkit/__init__.py` for why.
 
-This paper folder lives under `Columbia/paper_workspace/`, a sibling of
+This paper folder lives under `Columbia/ashen_paper/`, a sibling of
 (not nested inside) `Columbia/NL_kinks/`'s run data -- see
-`paper_workspace`'s own layout note at the top of `make_figures.py`: it's
-meant to be its own git repo, kept small and separate from multi-GB
-simulation output.
+`ashen_paper`'s own layout note at the top of `make_figures.py`: it's its
+own git repo, kept small and separate from multi-GB simulation output.
 
 ## Layout
 
@@ -23,14 +22,13 @@ simulation output.
   imperative.
 - `figures/` -- output: `<name>.pdf` + `<name>.pdf.json` (provenance: which
   cases/steps/thresholds, matplotlib version, `ashen`/paper git commit +
-  dirty flag). Meant to be git-tracked once `paper_workspace/` is under
-  version control.
+  dirty flag). Git-tracked.
 - `make_figures.py` -- driver. Run from anywhere:
 
 ```bash
-python Columbia/paper_workspace/papers/nl_kinks_paper/make_figures.py                    # every figure
-python Columbia/paper_workspace/papers/nl_kinks_paper/make_figures.py theta_hist_eta_scan
-python Columbia/paper_workspace/papers/nl_kinks_paper/make_figures.py --list
+python Columbia/ashen_paper/papers/nl_kinks_paper/make_figures.py                    # every figure
+python Columbia/ashen_paper/papers/nl_kinks_paper/make_figures.py theta_hist_eta_scan
+python Columbia/ashen_paper/papers/nl_kinks_paper/make_figures.py --list
 ```
 
 `--runs-root` (default `Columbia/NL_kinks`) is where case names in
