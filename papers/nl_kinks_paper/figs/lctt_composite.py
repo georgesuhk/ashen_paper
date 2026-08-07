@@ -60,8 +60,8 @@ class LcttPanel:
 # PLACEHOLDER: real case names/windows/markers -- see cases.toml's own
 # PLACEHOLDER notes for the run data these currently point at.
 PANELS: dict[str, LcttPanel] = {
-    "qa2.1_g2.3/eta1e-4_RE": LcttPanel(
-        case_name="qa2.1_g2.3/eta1e-4_RE",
+    "qa2.1_g2.3/eta1e-5_RE": LcttPanel(
+        case_name="qa2.1_g2.3/eta1e-5_RE",
         zoom_xlim=(15.0, 22.0),
         marker_time=18.0,
         eta_label=r"$\eta = 10^{-4}\ \Omega\mathrm{m}$",
@@ -71,8 +71,8 @@ PANELS: dict[str, LcttPanel] = {
         ],
         qprofile_step=18000,
     ),
-    "qa2.1_g2.3/eta1e-2_RE": LcttPanel(
-        case_name="qa2.1_g2.3/eta1e-2_RE",
+    "qa2.1_g2.3/eta1e-3_RE": LcttPanel(
+        case_name="qa2.1_g2.3/eta1e-3_RE",
         zoom_xlim=(3.5, 5.5),
         marker_time=4.6,
         eta_label=r"$\eta = 10^{-2}\ \Omega\mathrm{m}$",
@@ -83,8 +83,8 @@ PANELS: dict[str, LcttPanel] = {
         qprofile_step=4600,
     ),
 }
-OVERVIEW_ORDER = ["qa2.1_g2.3/eta1e-4_RE", "qa2.1_g2.3/eta1e-2_RE"]  # (a), (b)
-ZOOM_ORDER = ["qa2.1_g2.3/eta1e-2_RE", "qa2.1_g2.3/eta1e-4_RE"]  # (c), (d)
+OVERVIEW_ORDER = ["qa2.1_g2.3/eta1e-5_RE", "qa2.1_g2.3/eta1e-3_RE"]  # (a), (b)
+ZOOM_ORDER = ["qa2.1_g2.3/eta1e-5_RE", "qa2.1_g2.3/eta1e-3_RE"]  # (c), (d)
 
 
 def _matrix_and_times(case: Case, paths: RunPaths) -> tuple[np.ndarray, np.ndarray, list[float]]:
