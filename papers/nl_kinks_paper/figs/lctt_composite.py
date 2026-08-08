@@ -152,10 +152,11 @@ def _draw_zoom_overlays(ax, panel: LcttPanel, paths: RunPaths) -> None:
         if panel.show_rational_labels:
             ax.text(
                 label_x, psi_n, line.label, color=line.color,
-                va="bottom", ha="left", fontsize=9, fontweight="bold",
+                va="bottom", ha="left", fontsize=16, fontweight="bold",
             )
     if panel.marker_time is not None:
-        ax.axvline(panel.marker_time, color="blue", linestyle="--", linewidth=1.5, alpha=0.7, zorder=5)
+        # lw=3, alpha=0.7 -- prod_plots2.ipynb's "Overlap Visualizers" crosshair.
+        ax.axvline(panel.marker_time, color="blue", linestyle="--", linewidth=3, alpha=0.7, zorder=5)
 
 
 def make(
@@ -187,7 +188,17 @@ def make(
     from matplotlib.gridspec import GridSpec
 
     print("lctt_composite: drawing and saving")
-    with journal_style():
+    # prod_plots2.ipynb sets plt.rcParams per sub-plotter, and both stacked
+    # and side-by-side ran in the same combined-figure cell -- by the time
+    # everything actually rendered, plot_side_by_side_color_con_lengths's
+    # values (the one called last) were the active rcParams. Matched exactly
+    # here rather than journal_style()'s own (smaller) defaults.
+    with journal_style(overrides={
+        "font.size": 18,
+        "axes.labelsize": 16,
+        "xtick.labelsize": 18,
+        "ytick.labelsize": 18,
+    }):
         fig = plt.figure(figsize=(7.1, 8.0), layout="constrained")
         # Nested gridspec mirroring prod_plots2.ipynb's final combination:
         # an outer 0.2/0.8-ish height split between the stacked overview
@@ -206,7 +217,10 @@ def make(
             overview_axes.append(ax)
             draw_connection_length_map(ax, matrix, x, psi_n_in, log=True, smooth=panel.smooth)
             ax.set_xlim(*(panel.overview_xlim or shared_overview_xlim))
-            ax.set_title(f"({next(letters)}) {panel.eta_label}", loc="left", fontsize=10, fontweight="bold")
+            ax.set_title(
+                f"({next(letters)}) {panel.eta_label}",
+                loc="left", fontsize=14, fontweight="bold", pad=-1.5,
+            )
             ax.set_ylabel("")
             ax.set_yticks([])
             ax.tick_params(direction="in", which="both", top=True, right=True, bottom=True)
@@ -225,7 +239,7 @@ def make(
             )
             ax.set_xlim(*panel.zoom_xlim)
             _draw_zoom_overlays(ax, panel, paths)
-            ax.set_title(f"({next(letters)}) {panel.eta_label}", loc="left", fontsize=10, fontweight="bold")
+            ax.set_title(f"({next(letters)}) {panel.eta_label}", loc="left", fontsize=14, fontweight="bold")
             ax.tick_params(direction="in", which="both", top=True, right=True, bottom=True)
             if col > 0:
                 ax.set_ylabel("")
@@ -240,11 +254,12 @@ def make(
         bottom_pos = overview_axes[-1].get_position()
         fig.text(
             top_pos.x0 - 0.03, (top_pos.y1 + bottom_pos.y0) / 2, r"$\Psi_N$",
-            va="center", ha="right", rotation="vertical", fontsize=10,
+            va="center", ha="right", rotation="vertical", fontsize=16,
         )
 
         cbar_ax = fig.add_subplot(gs[2])
-        fig.colorbar(pcm, cax=cbar_ax, orientation="horizontal", label="$L_c$ [m]")
+        cbar = fig.colorbar(pcm, cax=cbar_ax, orientation="horizontal")
+        cbar.set_label("$L_c$ [m]", fontsize=16)
         # "infinity" swatch: field lines that never left, drawn as a small
         # black patch beside the colorbar -- draw_connection_length_map
         # already masks these black on the map itself; this is the legend
