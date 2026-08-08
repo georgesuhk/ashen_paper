@@ -53,8 +53,12 @@ class RationalSurfaceLine:
 @dataclass
 class LcttPanel:
     case_name: str
-    #: True-time window (µs) the zoomed map is cropped to.
-    zoom_xlim: tuple[float, float]
+    #: True-time window (µs) the zoomed map is cropped to; None = this case's
+    #: own full range, i.e. the true times of the steps cases.toml configures
+    #: for it (its `[cases."<name>".connection_length]` steps, else its plain
+    #: `steps`). Narrow the window by narrowing those steps rather than by
+    #: restating a µs range here, so the two can't drift apart.
+    zoom_xlim: tuple[float, float] | None = None
     #: True-time window (µs) the overview strip is cropped to; None = shared
     #: full range across every case in OVERVIEW_ORDER (see `make`), matching
     #: prod_plots2.ipynb's explicit shared `xlims` on the stacked plot.
@@ -82,20 +86,8 @@ PANELS: dict[str, LcttPanel] = {
     # plot_side_by_side_color_con_lengths values (0.75, 0.95) for both panels,
     # same as the original notebook -- swap to `mode=(m, n)` per panel once
     # each case's own qprofile is available to compute a real crossing.
-    "qa2.1_g2.3/eta1e-5_RE": LcttPanel(
-        case_name="qa2.1_g2.3/eta1e-5_RE",
-        zoom_xlim=(15.0, 22.0),
-        marker_time=18.0,
-        eta_label=r"$\eta = 10^{-4}\ \Omega\mathrm{m}$",
-        rational_surfaces=[
-            RationalSurfaceLine("2/1 TM", "lime", psi_n=0.95, linestyle="-", linewidth=4.5),
-            RationalSurfaceLine("3/2 TM", "aqua", psi_n=0.75, linestyle=":", linewidth=2.5),
-        ],
-        qprofile_step=18000,
-    ),
     "qa2.1_g2.3/eta1e-3_RE": LcttPanel(
         case_name="qa2.1_g2.3/eta1e-3_RE",
-        zoom_xlim=(3.5, 5.5),
         marker_time=4.6,
         eta_label=r"$\eta = 10^{-2}\ \Omega\mathrm{m}$",
         rational_surfaces=[
@@ -103,11 +95,21 @@ PANELS: dict[str, LcttPanel] = {
             RationalSurfaceLine("3/2 TM", "aqua", psi_n=0.75, linestyle=":", linewidth=2.5),
         ],
         qprofile_step=4600,
+    ),
+    "qa2.1_g2.3/eta1e-5_RE": LcttPanel(
+        case_name="qa2.1_g2.3/eta1e-5_RE",
+        marker_time=18.0,
+        eta_label=r"$\eta = 10^{-4}\ \Omega\mathrm{m}$",
+        rational_surfaces=[
+            RationalSurfaceLine("2/1 TM", "lime", psi_n=0.95, linestyle="-", linewidth=4.5),
+            RationalSurfaceLine("3/2 TM", "aqua", psi_n=0.75, linestyle=":", linewidth=2.5),
+        ],
+        qprofile_step=18000,
         show_rational_labels=False,
     ),
 }
-OVERVIEW_ORDER = ["qa2.1_g2.3/eta1e-5_RE", "qa2.1_g2.3/eta1e-3_RE"]  # (a), (b)
-ZOOM_ORDER = ["qa2.1_g2.3/eta1e-5_RE", "qa2.1_g2.3/eta1e-3_RE"]  # (c), (d)
+OVERVIEW_ORDER = ["qa2.1_g2.3/eta1e-3_RE", "qa2.1_g2.3/eta1e-5_RE"]  # (a), (b)
+ZOOM_ORDER = ["qa2.1_g2.3/eta1e-3_RE", "qa2.1_g2.3/eta1e-5_RE"]  # (c), (d)
 
 #: Explicit y-ticks for the (shared-y) zoom row; None = matplotlib's own.
 #: prod_plots2.ipynb hardcoded these to keep a tick from colliding with the
@@ -275,7 +277,9 @@ def make(
             pcm = draw_connection_length_map(
                 ax, matrix, x, psi_n_in, log=True, xlabel=r"t [$\mu s$]", smooth=panel.smooth
             )
-            ax.set_xlim(*panel.zoom_xlim)
+            # Default to this case's own configured time span (cases.toml's
+            # steps), not a restated µs window -- see LcttPanel.zoom_xlim.
+            ax.set_xlim(*(panel.zoom_xlim or (float(x.min()), float(x.max()))))
             ax.set_ylim(float(np.min(psi_n_in)), float(np.max(psi_n_in)))
             _draw_zoom_overlays(ax, panel, paths)
             ax.set_title(f"({next(letters)}) {panel.eta_label}", loc="left", fontsize=14, fontweight="bold")
@@ -296,10 +300,17 @@ def make(
         # of a per-panel ylabel -- prod_plots2.ipynb's plot_stacked_color_
         # con_lengths positions this the same way, via fig.text between the
         # top and bottom overview axes rather than on either axes itself.
+        # Its x is taken from the zoom row's real ylabel rather than a fixed
+        # offset, so the two read as one aligned column down the page (the
+        # notebook's hardcoded -0.098 only lined up for its own tick widths).
         top_pos = overview_axes[0].get_position()
         bottom_pos = overview_axes[-1].get_position()
+        zoom_label_bbox = zoom_axes[0].yaxis.label.get_window_extent()
+        label_x = fig.transFigure.inverted().transform(
+            (zoom_label_bbox.x0 + zoom_label_bbox.width / 2, 0.0)
+        )[0]
         fig.text(
-            top_pos.x0 - 0.098, (top_pos.y1 + bottom_pos.y0) / 2, r"$\Psi_N$",
+            label_x, (top_pos.y1 + bottom_pos.y0) / 2, r"$\Psi_N$",
             va="center", ha="center", rotation="vertical", fontsize=16,
         )
 
