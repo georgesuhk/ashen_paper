@@ -63,8 +63,13 @@ class LcttPanel:
     #: full range across every case in OVERVIEW_ORDER (see `make`), matching
     #: prod_plots2.ipynb's explicit shared `xlims` on the stacked plot.
     overview_xlim: tuple[float, float] | None = None
-    #: True-time (µs) of the vertical dashed marker; None = no marker.
+    #: prod_plots2.ipynb's "Overlap Visualizers": a crosshair marking where
+    #: (and when) the islands first overlap. `marker_time` is the vertical
+    #: arm, in true time (µs); `marker_psi_n` the horizontal one, in psi_n.
+    #: Either is None for "don't draw that arm" -- they're independent, so a
+    #: panel can carry just one.
     marker_time: float | None = None
+    marker_psi_n: float | None = None
     rational_surfaces: list[RationalSurfaceLine] = field(default_factory=list)
     #: Which step's qprofile cache backs any `mode`-based rational_surfaces.
     qprofile_step: int | None = None
@@ -89,6 +94,7 @@ PANELS: dict[str, LcttPanel] = {
     "qa2.1_g2.3/eta1e-3_RE": LcttPanel(
         case_name="qa2.1_g2.3/eta1e-3_RE",
         marker_time=4.6,
+        marker_psi_n=0.787,
         eta_label=r"$\eta = 10^{-2}\ \Omega\mathrm{m}$",
         rational_surfaces=[
             RationalSurfaceLine("2/1 TM", "lime", psi_n=0.95, linestyle="-", linewidth=4.5),
@@ -99,6 +105,7 @@ PANELS: dict[str, LcttPanel] = {
     "qa2.1_g2.3/eta1e-5_RE": LcttPanel(
         case_name="qa2.1_g2.3/eta1e-5_RE",
         marker_time=18.0,
+        marker_psi_n=0.891,
         eta_label=r"$\eta = 10^{-4}\ \Omega\mathrm{m}$",
         rational_surfaces=[
             RationalSurfaceLine("2/1 TM", "lime", psi_n=0.95, linestyle="-", linewidth=4.5),
@@ -110,6 +117,11 @@ PANELS: dict[str, LcttPanel] = {
 }
 OVERVIEW_ORDER = ["qa2.1_g2.3/eta1e-3_RE", "qa2.1_g2.3/eta1e-5_RE"]  # (a), (b)
 ZOOM_ORDER = ["qa2.1_g2.3/eta1e-3_RE", "qa2.1_g2.3/eta1e-5_RE"]  # (c), (d)
+
+#: The island-overlap crosshair's colour and weight, shared by both arms so
+#: they read as one marker (prod_plots2.ipynb's `c_line`/`lw`).
+_MARKER_COLOR = "blue"
+_MARKER_LINEWIDTH = 3
 
 #: Explicit y-ticks for the (shared-y) zoom row; None = matplotlib's own.
 #: prod_plots2.ipynb hardcoded these to keep a tick from colliding with the
@@ -186,9 +198,20 @@ def _draw_zoom_overlays(ax, panel: LcttPanel, paths: RunPaths) -> None:
                 color=line.color, transform=ax.get_yaxis_transform(),
                 ha="center", va="center", fontsize=16, fontweight="bold", zorder=6,
             )
+    # prod_plots2.ipynb's "Overlap Visualizers" crosshair -- both arms drawn
+    # at full opacity, since the notebook's alpha=0.7 on the vertical arm
+    # reads as a duller, darker blue than the horizontal one against the
+    # black (confined) regions these usually cross.
+    if panel.marker_psi_n is not None:
+        ax.axhline(
+            panel.marker_psi_n, color=_MARKER_COLOR, linestyle="--",
+            linewidth=_MARKER_LINEWIDTH, zorder=5,
+        )
     if panel.marker_time is not None:
-        # lw=3, alpha=0.7 -- prod_plots2.ipynb's "Overlap Visualizers" crosshair.
-        ax.axvline(panel.marker_time, color="blue", linestyle="--", linewidth=3, alpha=0.7, zorder=5)
+        ax.axvline(
+            panel.marker_time, color=_MARKER_COLOR, linestyle="--",
+            linewidth=_MARKER_LINEWIDTH, zorder=5,
+        )
 
 
 def make(
