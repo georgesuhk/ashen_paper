@@ -40,6 +40,9 @@ class RationalSurfaceLine:
     psi_n: float | None = None
     mode: tuple[int, int] | None = None
     linestyle: str = "--"
+    #: prod_plots2.ipynb's plot_side_by_side_color_con_lengths used 2.5/4.5
+    #: (not matplotlib's thin default) so the lines read at figure scale.
+    linewidth: float = 2.0
 
 
 @dataclass
@@ -47,7 +50,9 @@ class LcttPanel:
     case_name: str
     #: True-time window (µs) the zoomed map is cropped to.
     zoom_xlim: tuple[float, float]
-    #: True-time window (µs) the overview strip is cropped to; None = full range.
+    #: True-time window (µs) the overview strip is cropped to; None = shared
+    #: full range across every case in OVERVIEW_ORDER (see `make`), matching
+    #: prod_plots2.ipynb's explicit shared `xlims` on the stacked plot.
     overview_xlim: tuple[float, float] | None = None
     #: True-time (µs) of the vertical dashed marker; None = no marker.
     marker_time: float | None = None
@@ -55,19 +60,31 @@ class LcttPanel:
     #: Which step's qprofile cache backs any `mode`-based rational_surfaces.
     qprofile_step: int | None = None
     eta_label: str = ""
+    #: Only the leftmost ZOOM_ORDER panel needs its labels -- both zoom
+    #: panels typically mark the same physical surfaces (data_jorek.py's
+    #: side-by-side plotter only ever labelled `idx == 0`); set True on more
+    #: than one panel if their surfaces are at genuinely different psi_n.
+    show_rational_labels: bool = True
+    #: 3-point boxcar smoothing across steps, ignoring inf (confined) lines --
+    #: ports the `smooth=` flag both prod_plots2.ipynb plotters took.
+    smooth: bool = False
 
 
 # PLACEHOLDER: real case names/windows/markers -- see cases.toml's own
 # PLACEHOLDER notes for the run data these currently point at.
 PANELS: dict[str, LcttPanel] = {
+    # PLACEHOLDER: rational-surface psi_n hardcoded to prod_plots2.ipynb's
+    # plot_side_by_side_color_con_lengths values (0.75, 0.95) for both panels,
+    # same as the original notebook -- swap to `mode=(m, n)` per panel once
+    # each case's own qprofile is available to compute a real crossing.
     "qa2.1_g2.3/eta1e-5_RE": LcttPanel(
         case_name="qa2.1_g2.3/eta1e-5_RE",
         zoom_xlim=(15.0, 22.0),
         marker_time=18.0,
         eta_label=r"$\eta = 10^{-4}\ \Omega\mathrm{m}$",
         rational_surfaces=[
-            RationalSurfaceLine("2/1 TM", "tab:green", mode=(2, 1), linestyle="-"),
-            RationalSurfaceLine("3/2 TM", "cyan", mode=(3, 2), linestyle=":"),
+            RationalSurfaceLine("2/1 TM", "lime", psi_n=0.95, linestyle="-", linewidth=4.5),
+            RationalSurfaceLine("3/2 TM", "aqua", psi_n=0.75, linestyle=":", linewidth=2.5),
         ],
         qprofile_step=18000,
     ),
@@ -77,10 +94,11 @@ PANELS: dict[str, LcttPanel] = {
         marker_time=4.6,
         eta_label=r"$\eta = 10^{-2}\ \Omega\mathrm{m}$",
         rational_surfaces=[
-            RationalSurfaceLine("2/1 TM", "tab:green", mode=(2, 1), linestyle="-"),
-            RationalSurfaceLine("3/2 TM", "cyan", mode=(3, 2), linestyle=":"),
+            RationalSurfaceLine("2/1 TM", "lime", psi_n=0.95, linestyle="-", linewidth=4.5),
+            RationalSurfaceLine("3/2 TM", "aqua", psi_n=0.75, linestyle=":", linewidth=2.5),
         ],
         qprofile_step=4600,
+        show_rational_labels=False,
     ),
 }
 OVERVIEW_ORDER = ["qa2.1_g2.3/eta1e-5_RE", "qa2.1_g2.3/eta1e-3_RE"]  # (a), (b)
@@ -130,13 +148,14 @@ def _draw_zoom_overlays(ax, panel: LcttPanel, paths: RunPaths) -> None:
     label_x = x0 + 0.01 * (x1 - x0)
     for line in panel.rational_surfaces:
         psi_n = _rational_surface_psi_n(line, paths, panel)
-        ax.axhline(psi_n, color=line.color, linestyle=line.linestyle, linewidth=1.5)
-        ax.text(
-            label_x, psi_n, line.label, color=line.color,
-            va="bottom", ha="left", fontsize=9,
-        )
+        ax.axhline(psi_n, color=line.color, linestyle=line.linestyle, linewidth=line.linewidth, zorder=5)
+        if panel.show_rational_labels:
+            ax.text(
+                label_x, psi_n, line.label, color=line.color,
+                va="bottom", ha="left", fontsize=9, fontweight="bold",
+            )
     if panel.marker_time is not None:
-        ax.axvline(panel.marker_time, color="blue", linestyle="--", linewidth=1.5)
+        ax.axvline(panel.marker_time, color="blue", linestyle="--", linewidth=1.5, alpha=0.7, zorder=5)
 
 
 def make(
@@ -156,6 +175,12 @@ def make(
         matrix, x, psi_n_in = _matrix_and_times(case, paths)
         data[case_name] = (matrix, x, psi_n_in, paths)
 
+    # Shared x-limits across every OVERVIEW_ORDER panel that doesn't set its
+    # own -- ports prod_plots2.ipynb's explicit shared `xlims` on the stacked
+    # plot, so both strips line up even though the runs cover different spans.
+    overview_x_all = np.concatenate([data[c][1] for c in OVERVIEW_ORDER])
+    shared_overview_xlim = (float(overview_x_all.min()), float(overview_x_all.max()))
+
     import string
 
     import matplotlib.pyplot as plt
@@ -164,18 +189,27 @@ def make(
     print("lctt_composite: drawing and saving")
     with journal_style():
         fig = plt.figure(figsize=(7.1, 8.0), layout="constrained")
-        gs = GridSpec(4, 2, figure=fig, height_ratios=[0.6, 0.6, 3.5, 0.25])
+        # Nested gridspec mirroring prod_plots2.ipynb's final combination:
+        # an outer 0.2/0.8-ish height split between the stacked overview
+        # strips and the side-by-side zoom maps, plus a slim row for the
+        # shared colorbar/infinity swatch this repo adds on top.
+        gs = GridSpec(3, 1, figure=fig, height_ratios=[1.2, 3.5, 0.25])
+        gs_top = gs[0].subgridspec(len(OVERVIEW_ORDER), 1, hspace=0.15)
+        gs_bottom = gs[1].subgridspec(1, len(ZOOM_ORDER), wspace=0.08)
 
         letters = iter(string.ascii_lowercase)
+        overview_axes = []
         for row, case_name in enumerate(OVERVIEW_ORDER):
             panel = PANELS[case_name]
             matrix, x, psi_n_in, paths = data[case_name]
-            ax = fig.add_subplot(gs[row, :])
-            draw_connection_length_map(ax, matrix, x, psi_n_in, log=True)
-            if panel.overview_xlim is not None:
-                ax.set_xlim(*panel.overview_xlim)
-            ax.set_title(f"({next(letters)}) {panel.eta_label}", loc="left", fontsize=10)
+            ax = fig.add_subplot(gs_top[row])
+            overview_axes.append(ax)
+            draw_connection_length_map(ax, matrix, x, psi_n_in, log=True, smooth=panel.smooth)
+            ax.set_xlim(*(panel.overview_xlim or shared_overview_xlim))
+            ax.set_title(f"({next(letters)}) {panel.eta_label}", loc="left", fontsize=10, fontweight="bold")
+            ax.set_ylabel("")
             ax.set_yticks([])
+            ax.tick_params(direction="in", which="both", top=True, right=True, bottom=True)
             if row < len(OVERVIEW_ORDER) - 1:
                 ax.set_xticklabels([])
             else:
@@ -185,13 +219,31 @@ def make(
         for col, case_name in enumerate(ZOOM_ORDER):
             panel = PANELS[case_name]
             matrix, x, psi_n_in, paths = data[case_name]
-            ax = fig.add_subplot(gs[2, col])
-            pcm = draw_connection_length_map(ax, matrix, x, psi_n_in, log=True, xlabel=r"t [$\mu s$]")
+            ax = fig.add_subplot(gs_bottom[col])
+            pcm = draw_connection_length_map(
+                ax, matrix, x, psi_n_in, log=True, xlabel=r"t [$\mu s$]", smooth=panel.smooth
+            )
             ax.set_xlim(*panel.zoom_xlim)
             _draw_zoom_overlays(ax, panel, paths)
-            ax.set_title(f"({next(letters)}) {panel.eta_label}", loc="left", fontsize=10)
+            ax.set_title(f"({next(letters)}) {panel.eta_label}", loc="left", fontsize=10, fontweight="bold")
+            ax.tick_params(direction="in", which="both", top=True, right=True, bottom=True)
+            if col > 0:
+                ax.set_ylabel("")
+                ax.tick_params(labelleft=False)
 
-        cbar_ax = fig.add_subplot(gs[3, :])
+        # One shared "$\Psi_N$" label spanning the overview strips, instead
+        # of a per-panel ylabel -- prod_plots2.ipynb's plot_stacked_color_
+        # con_lengths positions this the same way, via fig.text between the
+        # top and bottom overview axes rather than on either axes itself.
+        fig.canvas.draw()
+        top_pos = overview_axes[0].get_position()
+        bottom_pos = overview_axes[-1].get_position()
+        fig.text(
+            top_pos.x0 - 0.03, (top_pos.y1 + bottom_pos.y0) / 2, r"$\Psi_N$",
+            va="center", ha="right", rotation="vertical", fontsize=10,
+        )
+
+        cbar_ax = fig.add_subplot(gs[2])
         fig.colorbar(pcm, cax=cbar_ax, orientation="horizontal", label="$L_c$ [m]")
         # "infinity" swatch: field lines that never left, drawn as a small
         # black patch beside the colorbar -- draw_connection_length_map
