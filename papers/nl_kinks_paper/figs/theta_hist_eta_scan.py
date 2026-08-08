@@ -33,6 +33,21 @@ __all__ = ["make"]
 
 _DEFAULT_COMPARISON_NAME = "eta_scan"
 
+#: Inches of figure height that are *not* panel: the shared x-label, the
+#: x-tick labels, and the per-panel title. Without this the figure is sized
+#: as if the panels were the whole thing, so at 5 columns the entire figure
+#: is one panel-width tall (~1.4in) and the y-label is clipped off the edge.
+_CHROME_HEIGHT = 1.15
+
+#: Draw a dotted line at the wetted-fraction threshold -- the bin height a
+#: theta bin must exceed to count as "wetted" in
+#: `figs/wetted_fraction_vs_eta.py`. Makes the two figures legible together:
+#: this one shows which bins clear the bar, that one plots how many do.
+#: ashen's own grid deliberately doesn't port this (see
+#: ashen/src/ashen/plotting/theta_histogram.py's docstring) -- it's a
+#: paper-figure choice, so it lives here.
+SHOW_WETTED_THRESHOLD = True
+
 
 def make(
     cases: dict[str, Case],
@@ -73,12 +88,19 @@ def make(
         panels.append((label, result.angles))
 
     bins = comparison.theta_bins or 500
+    # Same fallback wetted_fraction_vs_eta.py uses, minus its per-case tier:
+    # one shared reference line across every panel has to be one number, and
+    # a comparison whose members disagree on the threshold couldn't be drawn
+    # as a single scan anyway.
+    threshold = comparison.theta_wetted_threshold or 1.0 / bins
     print("theta_hist_eta_scan: drawing and saving")
     out = _draw_and_save(
         panels, bins=bins, n_cols=comparison.n_cols, out_dir=out_dir,
+        threshold=threshold if SHOW_WETTED_THRESHOLD else None,
         ashen_repo=ashen_repo, paper_repo=paper_repo,
         comparison=comparison.name, cases=comparison.cases, steps=used_steps,
         theta_target_psi=comparison.theta_target_psi, theta_bins=bins,
+        theta_wetted_threshold=threshold,
     )
     return out
 
@@ -89,11 +111,13 @@ def _draw_and_save(
     bins: int,
     n_cols: int,
     out_dir: Path,
+    threshold: float | None = None,
     ashen_repo: Path | None,
     paper_repo: Path | None,
     **provenance,
 ) -> Path:
     import matplotlib.pyplot as plt
+    from matplotlib.ticker import MaxNLocator
 
     n_panels = len(panels)
     n_rows = math.ceil(n_panels / n_cols) if n_panels else 1
@@ -108,11 +132,18 @@ def _draw_and_save(
     bottom_of_column = {idx % n_cols: idx for idx in range(n_panels)}
 
     with journal_style():
+        # Height is panel area *plus* chrome -- see _CHROME_HEIGHT. wspace/
+        # hspace go to the layout engine, not gridspec_kw: constrained layout
+        # computes its own spacing and silently ignores the gridspec values.
         fig, axes = plt.subplots(
-            n_rows, n_cols, figsize=(PRL_TWO_COLUMN_WIDTH, panel_width * n_rows),
-            layout="constrained", gridspec_kw={"wspace": 0.15, "hspace": 0.5},
-            squeeze=False,
+            n_rows, n_cols,
+            figsize=(PRL_TWO_COLUMN_WIDTH, panel_width * n_rows + _CHROME_HEIGHT),
+            layout="constrained", squeeze=False,
         )
+        # wspace has to clear the +-pi tick labels, which sit hard against
+        # each panel's left/right edge (set_ha below) -- too tight and the
+        # neighbouring "pi" and "-pi" run together into one glyph soup.
+        fig.get_layout_engine().set(w_pad=0.02, h_pad=0.02, wspace=0.10, hspace=0.06)
         axes = axes.flatten()
 
         all_counts = []
@@ -124,7 +155,12 @@ def _draw_and_save(
             counts = draw_theta_histogram(ax, angles, bins=bins)
             all_counts.append(counts)
 
-            ax.set_title(label, loc="left", pad=5)
+            if threshold is not None:
+                ax.axhline(threshold, color="black", linestyle=":", linewidth=1.5, zorder=4)
+
+            # Centred, not left-aligned: at 5 narrow columns a left-aligned
+            # title runs out over its neighbour instead of naming its own panel.
+            ax.set_title(label, loc="center", pad=4)
             ax.tick_params(direction="in", which="both", top=True, right=True)
             ax.set_xlim(-np.pi, np.pi)
             ax.set_xticks([-np.pi, 0, np.pi])
@@ -141,7 +177,7 @@ def _draw_and_save(
                 # journal_style()'s usetex=True (unlike ashen.plotting's own
                 # style, which has usetex off) -- must be escaped or LaTeX
                 # rejects the whole label.
-                ax.set_ylabel(r"\# field lines [a.u.]", labelpad=10)
+                ax.set_ylabel(r"\# field-lines [a.u.]", labelpad=4)
             else:
                 ax.tick_params(labelleft=False)
 
@@ -150,6 +186,10 @@ def _draw_and_save(
         for ax in axes:
             if ax.get_visible():
                 ax.set_ylim(0, limit)
+                # Cap the tick count explicitly: on panels this short
+                # matplotlib's default locator settles for two labels
+                # (0.00/0.05), too coarse to read a distribution against.
+                ax.yaxis.set_major_locator(MaxNLocator(nbins=4, steps=[1, 2, 2.5, 5, 10]))
 
         fig.supxlabel(r"$\theta$ [rad]")
 
