@@ -99,9 +99,10 @@ def make(
                 or 1.0 / n_bins
             )
             fraction = wetted_fraction(counts, threshold=threshold)
-            print(f"    {case_name}: wetted fraction = {fraction:.3g}")
+            percent = fraction * 100
+            print(f"    {case_name}: wetted fraction = {percent:.3g}%")
             xs.append(x_by_case[case_name])
-            ys.append(fraction)
+            ys.append(percent)
 
         used_steps[ds_name] = case_steps
         series.append((dataset.series_label, xs, ys))
@@ -129,15 +130,19 @@ def _draw_and_save(
 ) -> Path:
     import matplotlib.pyplot as plt
 
-    from paper_toolkit.layout import PRL_ONE_COLUMN_WIDTH
-
+    # Matches prod_plots_draft0.ipynb's own eta_plot(..., fig_height=2.5) call
+    # that produced "wetted_area.pdf" -- figsize=(6, fig_height) there, not a
+    # PRL_ONE_COLUMN_WIDTH-derived size -- so a re-upload needn't be reformatted.
     with journal_style():
-        fig, ax = plt.subplots(
-            figsize=(PRL_ONE_COLUMN_WIDTH * 1.6, PRL_ONE_COLUMN_WIDTH), layout="constrained",
-        )
+        fig, ax = plt.subplots(figsize=(6, 2.5), layout="constrained")
         for (label, x, y), color in zip(series, colors):
+            # "%" is a literal LaTeX comment character under journal_style()'s
+            # usetex=True (unlike ashen.plotting's own style, which has usetex
+            # off) -- must be escaped or LaTeX silently eats the rest of the
+            # label. Matches prod_plots_draft0.ipynb's own r"Wetted fraction
+            # [\%]" call for this exact figure.
             draw_wetted_fraction_vs_x(
-                ax, x, y, xlabel=xlabel, ylabel="Wetted fraction",
+                ax, x, y, xlabel=xlabel, ylabel=r"Wetted fraction [\%]",
                 label=label, color=color,
             )
         ax.legend()
