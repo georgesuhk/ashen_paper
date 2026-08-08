@@ -48,6 +48,7 @@ def save_pdf(
     maker: str,
     ashen_repo: Path | str | None = None,
     paper_repo: Path | str | None = None,
+    savefig_kwargs: dict[str, Any] | None = None,
     **provenance: Any,
 ) -> Path:
     """Save ``fig`` as a vector PDF at ``out_path`` plus a provenance sidecar.
@@ -56,9 +57,12 @@ def save_pdf(
     (e.g. ``"figs.theta_hist_eta_scan.make"``), for a reader who only has the
     output and wants to find the code that produced it. ``ashen_repo``/
     ``paper_repo`` are the repo roots to record git provenance for -- pass
-    ``None`` for either if it isn't (yet) a git repo. Remaining keyword
-    arguments (case names, steps, thresholds used, ...) are recorded verbatim
-    in the sidecar under their own key.
+    ``None`` for either if it isn't (yet) a git repo. ``savefig_kwargs`` is
+    forwarded to ``fig.savefig`` -- needed by figures that place artists
+    outside the axes area (a manually positioned colourbar, say), which are
+    clipped without ``{"bbox_inches": "tight"}``. Remaining keyword arguments
+    (case names, steps, thresholds used, ...) are recorded verbatim in the
+    sidecar under their own key.
     """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -69,7 +73,7 @@ def save_pdf(
         "Creator": f"paper_toolkit via {maker}",
         "CreationDate": now,  # matplotlib's pdf backend requires a real datetime, not a string
     }
-    fig.savefig(out_path, metadata=metadata)
+    fig.savefig(out_path, metadata=metadata, **(savefig_kwargs or {}))
 
     import matplotlib
 
