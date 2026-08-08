@@ -39,7 +39,7 @@ _DEFAULT_COMPARISON_NAME = "eta_scan"
 #: is one panel-width tall (~1.4in) and the y-label is clipped off the edge.
 _CHROME_HEIGHT = 1.15
 
-#: Draw a dotted line at the wetted-fraction threshold -- the bin height a
+#: Draw a dashed line at the wetted-fraction threshold -- the bin height a
 #: theta bin must exceed to count as "wetted" in
 #: `figs/wetted_fraction_vs_eta.py`. Makes the two figures legible together:
 #: this one shows which bins clear the bar, that one plots how many do.
@@ -47,6 +47,23 @@ _CHROME_HEIGHT = 1.15
 #: ashen/src/ashen/plotting/theta_histogram.py's docstring) -- it's a
 #: paper-figure choice, so it lives here.
 SHOW_WETTED_THRESHOLD = True
+
+
+def _wetted_threshold(comparison: Comparison, case: Case, bins: int) -> float:
+    """The bin height this case's field lines must clear to count as wetted.
+
+    Deliberately the same three-tier fallback
+    ``figs/wetted_fraction_vs_eta.py`` resolves for the identical quantity --
+    comparison, then case, then ``1/bins``. Skipping the case tier here (as
+    an earlier version did) draws the line at ``1/bins`` while the companion
+    figure computes its fraction against the case's own value, so the two
+    figures silently disagree about where the bar is.
+    """
+    return (
+        comparison.theta_wetted_threshold
+        or case.theta_wetted_threshold
+        or 1.0 / bins
+    )
 
 
 def make(
@@ -88,19 +105,24 @@ def make(
         panels.append((label, result.angles))
 
     bins = comparison.theta_bins or 500
-    # Same fallback wetted_fraction_vs_eta.py uses, minus its per-case tier:
-    # one shared reference line across every panel has to be one number, and
-    # a comparison whose members disagree on the threshold couldn't be drawn
-    # as a single scan anyway.
-    threshold = comparison.theta_wetted_threshold or 1.0 / bins
+    # Per panel, not one shared value: the threshold can be set per case, and
+    # a panel has to show the bar its own case is actually measured against.
+    # Identical values collapse to a level line across the row anyway.
+    thresholds = [
+        _wetted_threshold(comparison, cases[case_name], bins)
+        for _, case_name in comparison.labelled_cases()
+    ]
+    if len(set(thresholds)) > 1:
+        print(f"  note: per-case wetted thresholds differ across panels: {thresholds}")
+
     print("theta_hist_eta_scan: drawing and saving")
     out = _draw_and_save(
         panels, bins=bins, n_cols=comparison.n_cols, out_dir=out_dir,
-        threshold=threshold if SHOW_WETTED_THRESHOLD else None,
+        thresholds=thresholds if SHOW_WETTED_THRESHOLD else None,
         ashen_repo=ashen_repo, paper_repo=paper_repo,
         comparison=comparison.name, cases=comparison.cases, steps=used_steps,
         theta_target_psi=comparison.theta_target_psi, theta_bins=bins,
-        theta_wetted_threshold=threshold,
+        theta_wetted_thresholds=dict(zip(comparison.cases, thresholds)),
     )
     return out
 
@@ -111,7 +133,7 @@ def _draw_and_save(
     bins: int,
     n_cols: int,
     out_dir: Path,
-    threshold: float | None = None,
+    thresholds: list[float] | None = None,
     ashen_repo: Path | None,
     paper_repo: Path | None,
     **provenance,
@@ -155,8 +177,10 @@ def _draw_and_save(
             counts = draw_theta_histogram(ax, angles, bins=bins)
             all_counts.append(counts)
 
-            if threshold is not None:
-                ax.axhline(threshold, color="black", linestyle=":", linewidth=1.5, zorder=4)
+            if thresholds is not None and idx < len(thresholds):
+                ax.axhline(
+                    thresholds[idx], color="black", linestyle="--", linewidth=1.5, zorder=4,
+                )
 
             # Centred, not left-aligned: at 5 narrow columns a left-aligned
             # title runs out over its neighbour instead of naming its own panel.
