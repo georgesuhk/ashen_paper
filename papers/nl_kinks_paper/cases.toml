@@ -86,6 +86,11 @@ cases = [
   "qa2.1_g2.3/eta1e-4_RE",
   "qa2.1_g2.3/eta1e-5_RE",
 ]
+# Set explicitly: the default DISCRETE_PALETTE[0] is #E41A1C, a red that is
+# indistinguishable from rho19's tab:red below. Blue/red matches the
+# notebook's own two-dataset convention.
+color         = "tab:blue"
+dataset_label = "$n_e = 10^{18}\\,\\mathrm{m}^{-3}$"
 
 [comparisons.wetted_vs_eta.datasets.rho19]
 cases = [
