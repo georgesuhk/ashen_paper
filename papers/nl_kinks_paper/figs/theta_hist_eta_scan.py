@@ -39,7 +39,7 @@ _DEFAULT_COMPARISON_NAME = "eta_scan"
 #: is one panel-width tall (~1.4in) and the y-label is clipped off the edge.
 _CHROME_HEIGHT = 1.15
 
-#: Draw a dashed line at the wetted-fraction threshold -- the bin height a
+#: Draw a dotted line at the wetted-fraction threshold -- the bin height a
 #: theta bin must exceed to count as "wetted" in
 #: `figs/wetted_fraction_vs_eta.py`. Makes the two figures legible together:
 #: this one shows which bins clear the bar, that one plots how many do.
@@ -179,7 +179,7 @@ def _draw_and_save(
 
             if thresholds is not None and idx < len(thresholds):
                 ax.axhline(
-                    thresholds[idx], color="black", linestyle="--", linewidth=1.5, zorder=4,
+                    thresholds[idx], color="black", linestyle=":", linewidth=1.5, zorder=4,
                 )
 
             # Centred, not left-aligned: at 5 narrow columns a left-aligned
